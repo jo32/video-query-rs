@@ -8,22 +8,12 @@
   aria-labelledby="title description"
 >
   <title id="title">Video Query</title>
-  <desc id="description">An abstract cinematic eye with a negative-space play symbol and a flowing Q tail.</desc>
+  <desc id="description">A continuous ribbon monogram suggesting V, Q, and a semantic search path.</desc>
   <path
-    d="M360 376C392 400 421 429 448 458"
+    d="M76 108C110 190 151 290 190 385C200 410 234 412 248 388L354 196C379 151 407 132 430 147C457 165 452 207 413 232L344 277C303 303 279 333 290 365C303 403 351 408 405 382L456 434"
     stroke="#111111"
-    stroke-width="38"
+    stroke-width="46"
     stroke-linecap="round"
-  />
-  <path
-    d="M42 256C91 153 174 96 274 96C367 96 438 151 474 243C477 251 477 261 474 269C438 361 367 416 274 416C174 416 91 359 42 256Z"
-    fill="#111111"
-  />
-  <path
-    d="M226 187C214 180 200 189 200 203V309C200 323 215 332 227 325L322 270C333 264 333 248 322 242L226 187Z"
-    fill="#FFFFFF"
-    stroke="#FFFFFF"
-    stroke-width="8"
     stroke-linejoin="round"
   />
 </svg>
