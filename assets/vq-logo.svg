@@ -8,25 +8,25 @@
   aria-labelledby="title description"
 >
   <title id="title">Video Query</title>
-  <desc id="description">An organic ribbon monogram joining V to a clear Q loop and tail.</desc>
+  <desc id="description">A fluid lowercase v handing off into an airy q loop and tail.</desc>
   <path
-    d="M76 108C110 190 151 290 190 385C200 410 234 412 248 388L303 176"
+    d="M74 112C108 194 148 292 186 384C196 409 228 412 242 389L246 260"
     stroke="#111111"
-    stroke-width="46"
+    stroke-width="42"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
   <path
-    d="M325 139C403 139 456 188 456 270C456 351 405 405 333 405C260 405 214 351 214 271C214 190 255 144 325 139Z"
+    d="M246 260C246 181 291 130 352 130C419 130 462 184 462 260C462 338 419 392 352 392C291 392 246 341 246 260Z"
     stroke="#111111"
-    stroke-width="46"
+    stroke-width="42"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
   <path
-    d="M354 337C383 369 414 402 448 438"
+    d="M370 338C395 370 422 401 450 432"
     stroke="#111111"
-    stroke-width="40"
+    stroke-width="36"
     stroke-linecap="round"
   />
 </svg>
