@@ -1,13 +1,88 @@
-# Video Query Rust (`vq`)
+<div align="center">
+  <img src="assets/vq-logo.svg" alt="Video Query logo" width="112" height="112">
+  <h1>Video Query Rust (<code>vq</code>)</h1>
+</div>
 
-`vq` is a new, standalone Rust command-line implementation of local semantic
-video search. It does not contain the original iOS project's Swift, Objective-C,
-project files, resources, or copied implementation code.
+`vq` is a local semantic video search and transcription CLI, and the engine
+behind the bundled `analyze-video` skill. The primary way to use this repository
+is from a coding agent: give the agent a video URL or local file and ask it to
+produce an evidence-backed report.
 
 The command scans video frames, ranks keyframes in Rust, embeds selected images
 with a local Chinese-first image/text model, persists the vectors in SQLite, and
 searches them with Chinese or English text. It can also transcribe speech from
-audio or video files completely locally.
+audio or video files completely locally. This is a new, standalone Rust
+implementation and does not contain the original iOS project's Swift,
+Objective-C, project files, resources, or copied implementation code.
+
+## Primary usage: coding-agent skill
+
+### Install it with a prompt
+
+Paste this into your coding agent to install the skill for you:
+
+```text
+Install the `analyze-video` Agent Skill from
+https://github.com/jo32/video-query-rs/tree/main/.agents/skills/analyze-video
+for this coding agent. Install the complete skill directory, including its
+scripts and references, in the appropriate user-level or workspace skills
+directory. Verify that the skill is discoverable as `analyze-video`, tell me
+the installed path, and tell me whether I need to start a new session before
+using it. Do not analyze a video yet.
+```
+
+After installation, start a new agent session if requested and use one of the
+analysis prompts below.
+
+### Use it from this repository
+
+This repository ships an [Agent Skill](.agents/skills/analyze-video/SKILL.md) at
+`.agents/skills/analyze-video`. Clone the repository, then open its root in Codex
+or another coding agent that supports Agent Skills:
+
+```sh
+git clone https://github.com/jo32/video-query-rs.git
+cd video-query-rs
+```
+
+Ask the agent to use `$analyze-video`:
+
+```text
+Use $analyze-video to analyze https://example.com/video and produce a
+comprehensive, evidence-backed Markdown report. Save the analysis under
+./video-analyses/example.
+```
+
+For a local file, provide its absolute path and any question you want the report
+to emphasize:
+
+```text
+Use $analyze-video to analyze /absolute/path/to/interview.mp4. Focus on the
+speaker's main claims, the evidence shown on screen, and any limitations.
+```
+
+The skill runs the complete workflow: it acquires publisher metadata and timed
+subtitles, falls back to local speech recognition when needed, indexes the video
+for Chinese/English semantic frame search, selects and visually inspects useful
+keyframes, and assembles a final `report.md`. It also preserves the source and
+raw evidence in the analysis directory so the result can be audited or resumed.
+
+To use the skill from another workspace, copy the complete skill directory into
+that workspace's `.agents/skills` directory:
+
+```sh
+mkdir -p /path/to/your-project/.agents/skills
+cp -R .agents/skills/analyze-video /path/to/your-project/.agents/skills/
+```
+
+On the first run, the skill can install or download supported missing tools, a
+checksum-verified `vq` release, and local models. Python 3.10 or newer, FFmpeg,
+and ffprobe are required; model preparation can use about 1.2 GB. URL downloads
+must be content you are authorized to save and remain subject to the source
+site's terms.
+
+The rest of this README documents installing and using `vq` directly, including
+its lower-level indexing, search, keyframe, and transcription commands.
 
 ## What is implemented
 
@@ -140,7 +215,7 @@ Only download content you have permission to save and follow the source site's
 terms. `yt-dlp` invokes the separately installed FFmpeg when it needs to merge
 or convert media.
 
-## Usage
+## Direct CLI usage
 
 Check whether all image and speech models/runtimes are already available without
 accessing the network:

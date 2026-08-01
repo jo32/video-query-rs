@@ -1,0 +1,32 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  fill="none"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">Video Query</title>
+  <desc id="description">A fluid lowercase v handing off into an airy q loop and tail.</desc>
+  <path
+    d="M74 130C108 208 148 300 186 384C196 409 228 412 242 389L246 260"
+    stroke="#111111"
+    stroke-width="42"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M246 260C246 181 291 130 352 130C419 130 462 184 462 260C462 338 419 392 352 392C291 392 246 341 246 260Z"
+    stroke="#111111"
+    stroke-width="42"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M370 338C394 361 418 385 444 408"
+    stroke="#111111"
+    stroke-width="36"
+    stroke-linecap="round"
+  />
+</svg>
