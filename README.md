@@ -1,4 +1,7 @@
-# Video Query Rust (`vq`)
+<div align="center">
+  <img src="assets/vq-logo.svg" alt="Video Query logo" width="112" height="112">
+  <h1>Video Query Rust (<code>vq</code>)</h1>
+</div>
 
 `vq` is a new, standalone Rust command-line implementation of local semantic
 video search. It does not contain the original iOS project's Swift, Objective-C,

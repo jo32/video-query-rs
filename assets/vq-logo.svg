@@ -1,0 +1,33 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  fill="none"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">Video Query</title>
+  <desc id="description">A play symbol inside a search lens, forming the letter Q.</desc>
+  <rect x="24" y="24" width="464" height="464" rx="116" fill="#111111"/>
+  <circle
+    cx="218"
+    cy="218"
+    r="116"
+    stroke="#FFFFFF"
+    stroke-width="38"
+  />
+  <path
+    d="M302 302L397 397"
+    stroke="#FFFFFF"
+    stroke-width="38"
+    stroke-linecap="round"
+  />
+  <path
+    d="M191 160L291 218L191 276V160Z"
+    fill="#FFFFFF"
+    stroke="#FFFFFF"
+    stroke-width="12"
+    stroke-linejoin="round"
+  />
+</svg>
