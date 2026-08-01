@@ -152,6 +152,10 @@ def parse_args() -> argparse.Namespace:
         default="zh.*,yue.*,en.*,ja.*,ko.*",
         help="yt-dlp subtitle language expression",
     )
+    parser.add_argument(
+        "--cookies-from-browser",
+        help="Pass an authorized browser cookie store to yt-dlp (for example: chrome)",
+    )
     parser.add_argument("--segment-seconds", type=float, default=10.0)
     parser.add_argument("--max-candidates", type=int, default=12)
     parser.add_argument("--embedding-queries", type=int, default=4)
@@ -390,6 +394,7 @@ def acquire_url(
     source_dir: Path,
     yt_dlp: Sequence[str],
     subtitle_languages: str,
+    cookies_from_browser: str | None,
     logs: Path,
 ) -> Path:
     template = source_dir / "%(id)s.%(ext)s"
@@ -417,8 +422,10 @@ def acquire_url(
         os.fspath(template),
         "--print",
         "after_move:filepath",
-        source,
     ]
+    if cookies_from_browser:
+        command.extend(["--cookies-from-browser", cookies_from_browser])
+    command.append(source)
     result = run(command, log_path=logs / "yt-dlp.log")
     printed_paths = [
         Path(line.strip()) for line in result.stdout.splitlines() if line.strip()
@@ -1044,7 +1051,12 @@ def main() -> int:
 
     if is_url(args.source):
         video = acquire_url(
-            args.source, source_dir, yt_dlp, args.subtitle_languages, logs
+            args.source,
+            source_dir,
+            yt_dlp,
+            args.subtitle_languages,
+            args.cookies_from_browser,
+            logs,
         )
     else:
         video = Path(args.source).expanduser().resolve()

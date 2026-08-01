@@ -30,6 +30,8 @@ python3 <skill-dir>/scripts/prepare_video.py \
 
 Add `--language zh` for known Mandarin/Cantonese content. Omit `--install-missing` only when the user prohibits package-manager changes. Do not replace this script with ad hoc commands: it accepts an already healthy `vq`, otherwise downloads a checksum-verified GitHub release for Windows, Linux, or macOS, and uses a GitHub source build only as the final fallback. It also verifies FFmpeg and yt-dlp, checks/fetches models, downloads useful sidecars, normalizes subtitles or transcribes locally, indexes the video, ranks timed cues, runs embedding searches, and extracts candidate frames.
 
+If a site requires browser cookies and the user explicitly authorizes access to a browser cookie store, add `--cookies-from-browser <browser>` (for example, `--cookies-from-browser chrome`). Never enable browser-cookie access implicitly.
+
 If preparation fails, inspect `raw/logs/` and fix the narrow failing stage. Re-run the same command; generated stages are designed to be safely refreshed. Never delete the analysis directory to recover unless the user explicitly asks.
 
 ### 3. Understand language evidence first
