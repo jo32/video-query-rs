@@ -10,7 +10,7 @@
   <title id="title">Video Query</title>
   <desc id="description">A fluid lowercase v handing off into an airy q loop and tail.</desc>
   <path
-    d="M74 112C108 194 148 292 186 384C196 409 228 412 242 389L246 260"
+    d="M74 130C108 208 148 300 186 384C196 409 228 412 242 389L246 260"
     stroke="#111111"
     stroke-width="42"
     stroke-linecap="round"
@@ -24,7 +24,7 @@
     stroke-linejoin="round"
   />
   <path
-    d="M370 338C395 370 422 401 450 432"
+    d="M370 338C394 361 418 385 444 408"
     stroke="#111111"
     stroke-width="36"
     stroke-linecap="round"
