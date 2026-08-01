@@ -1,0 +1,7 @@
+[project]
+name = "research-agent-tools"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "yt-dlp[default,deno]",
+]

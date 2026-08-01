@@ -1,0 +1,9 @@
+/target/
+/.venv/
+/.ruff_cache/
+/.video-query/
+__pycache__/
+*.pyc
+*.sqlite3-shm
+*.sqlite3-wal
+.DS_Store

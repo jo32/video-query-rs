@@ -1,0 +1,4 @@
+interface:
+  display_name: "Analyze Video"
+  short_description: "Download, index, inspect, and explain videos"
+  default_prompt: "Use $analyze-video to analyze this video and produce an evidence-backed Markdown report."
