@@ -8,26 +8,22 @@
   aria-labelledby="title description"
 >
   <title id="title">Video Query</title>
-  <desc id="description">A play symbol inside a search lens, forming the letter Q.</desc>
-  <rect x="24" y="24" width="464" height="464" rx="116" fill="#111111"/>
-  <circle
-    cx="218"
-    cy="218"
-    r="116"
-    stroke="#FFFFFF"
-    stroke-width="38"
-  />
+  <desc id="description">An abstract cinematic eye with a negative-space play symbol and a flowing Q tail.</desc>
   <path
-    d="M302 302L397 397"
-    stroke="#FFFFFF"
+    d="M360 376C392 400 421 429 448 458"
+    stroke="#111111"
     stroke-width="38"
     stroke-linecap="round"
   />
   <path
-    d="M191 160L291 218L191 276V160Z"
+    d="M42 256C91 153 174 96 274 96C367 96 438 151 474 243C477 251 477 261 474 269C438 361 367 416 274 416C174 416 91 359 42 256Z"
+    fill="#111111"
+  />
+  <path
+    d="M226 187C214 180 200 189 200 203V309C200 323 215 332 227 325L322 270C333 264 333 248 322 242L226 187Z"
     fill="#FFFFFF"
     stroke="#FFFFFF"
-    stroke-width="12"
+    stroke-width="8"
     stroke-linejoin="round"
   />
 </svg>
