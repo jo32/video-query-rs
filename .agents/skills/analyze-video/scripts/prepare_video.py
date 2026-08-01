@@ -152,6 +152,13 @@ def parse_args() -> argparse.Namespace:
         default="zh.*,yue.*,en.*,ja.*,ko.*",
         help="yt-dlp subtitle language expression",
     )
+    parser.add_argument(
+        "--cookies-from-browser",
+        help=(
+            "Explicitly authorized browser cookie store for yt-dlp "
+            "(for example: chrome)"
+        ),
+    )
     parser.add_argument("--segment-seconds", type=float, default=10.0)
     parser.add_argument("--max-candidates", type=int, default=12)
     parser.add_argument("--embedding-queries", type=int, default=4)
@@ -390,6 +397,7 @@ def acquire_url(
     source_dir: Path,
     yt_dlp: Sequence[str],
     subtitle_languages: str,
+    cookies_from_browser: str | None,
     logs: Path,
 ) -> Path:
     template = source_dir / "%(id)s.%(ext)s"
@@ -417,8 +425,10 @@ def acquire_url(
         os.fspath(template),
         "--print",
         "after_move:filepath",
-        source,
     ]
+    if cookies_from_browser:
+        command.extend(["--cookies-from-browser", cookies_from_browser])
+    command.append(source)
     result = run(command, log_path=logs / "yt-dlp.log")
     printed_paths = [
         Path(line.strip()) for line in result.stdout.splitlines() if line.strip()
@@ -747,6 +757,13 @@ def build_candidates(
     duration: float,
     limit: int,
 ) -> list[dict[str, Any]]:
+    latest_frame_time = max(0.0, duration - 0.5)
+
+    def safe_frame_time(value: float) -> float:
+        if duration <= 0:
+            return max(0.0, value)
+        return min(max(0.0, value), latest_frame_time)
+
     segments = transcript.get("segments") or []
     proposed: list[dict[str, Any]] = []
     for segment in segments:
@@ -757,7 +774,9 @@ def build_candidates(
             end = float(segment.get("end_seconds", start))
             proposed.append(
                 {
-                    "timestamp_seconds": round((start + end) / 2, 3),
+                    "timestamp_seconds": round(
+                        safe_frame_time((start + end) / 2), 3
+                    ),
                     "cue_start_seconds": start,
                     "cue_end_seconds": end,
                     "query": text[:240],
@@ -774,7 +793,7 @@ def build_candidates(
         title = str(chapter.get("title") or "chapter transition").strip()
         proposed.append(
             {
-                "timestamp_seconds": round(timestamp, 3),
+                "timestamp_seconds": round(safe_frame_time(timestamp), 3),
                 "cue_start_seconds": timestamp,
                 "cue_end_seconds": float(chapter.get("end_time") or timestamp),
                 "query": title,
@@ -789,7 +808,9 @@ def build_candidates(
         end = float(segment.get("end_seconds", start))
         proposed.append(
             {
-                "timestamp_seconds": round((start + end) / 2, 3),
+                "timestamp_seconds": round(
+                    safe_frame_time((start + end) / 2), 3
+                ),
                 "cue_start_seconds": start,
                 "cue_end_seconds": end,
                 "query": str(segment.get("text", ""))[:240],
@@ -962,7 +983,10 @@ def deduplicate_frames(frames: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def load_metadata(
     source_dir: Path, video: Path, source: str, probe: dict[str, Any]
 ) -> dict[str, Any]:
-    info_files = sorted(source_dir.glob("*.info.json")) if is_url(source) else []
+    info_files = sorted(source_dir.glob("*.info.json"))
+    exact_info = source_dir / f"{video.stem}.info.json"
+    if exact_info.is_file():
+        info_files = [exact_info, *[path for path in info_files if path != exact_info]]
     info = read_json(info_files[0], {}) if info_files else {}
     return {
         "title": info.get("title") or video.stem,
@@ -1044,7 +1068,12 @@ def main() -> int:
 
     if is_url(args.source):
         video = acquire_url(
-            args.source, source_dir, yt_dlp, args.subtitle_languages, logs
+            args.source,
+            source_dir,
+            yt_dlp,
+            args.subtitle_languages,
+            args.cookies_from_browser,
+            logs,
         )
     else:
         video = Path(args.source).expanduser().resolve()

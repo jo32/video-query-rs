@@ -115,7 +115,7 @@ Good queries describe visible content: “带红色下降曲线的白底图表�
 - yt-dlp absent: with `--install-missing`, prefer the project's pinned `uv` environment, then Homebrew on macOS.
 - FFmpeg absent: with `--install-missing` on macOS, install through Homebrew; otherwise report the narrow prerequisite.
 - No subtitles: install/use `whisper-cli` and create timestamped local ASR. On Windows/Linux, `--install-missing` downloads a checksum-pinned official whisper.cpp runtime; on macOS it uses Homebrew.
-- Private, DRM-protected, login-gated, or unsupported URLs: do not bypass protections. Ask the user for an authorized local file or cookies/configuration they control.
+- Private, DRM-protected, login-gated, or unsupported URLs: do not bypass protections. Ask the user for an authorized local file or cookies/configuration they control. After explicit authorization, pass the selected store through `prepare_video.py --cookies-from-browser <browser>`; never read browser cookies by default.
 - Very long videos: first use `--metadata-only` to inspect duration and transcript, then run the complete command when the user confirms the compute/storage cost.
 
 ## Final quality bar
