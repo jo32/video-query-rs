@@ -90,6 +90,6 @@ jobs:
             gh release create "$GITHUB_REF_NAME" dist/* \
               --verify-tag \
               --generate-notes \
-              --title "video-query-rs $GITHUB_REF_NAME" \
+              --title "Video Sherlock $GITHUB_REF_NAME" \
               --repo "$GITHUB_REPOSITORY"
           fi

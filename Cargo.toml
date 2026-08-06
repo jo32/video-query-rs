@@ -1,10 +1,10 @@
 [package]
-name = "video-query-rs"
-version = "0.1.1"
+name = "video-sherlock"
+version = "0.1.2"
 edition = "2024"
 license = "MIT"
-description = "Local-first semantic video search and speech transcription"
-repository = "https://github.com/jo32/video-query-rs"
+description = "Evidence-backed video understanding for coding agents"
+repository = "https://github.com/jo32/video-sherlock"
 readme = "README.md"
 rust-version = "1.91"
 

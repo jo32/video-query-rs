@@ -1,12 +1,14 @@
 <div align="center">
-  <img src="assets/vq-logo.svg" alt="Video Query logo" width="112" height="112">
-  <h1>Video Query Rust (<code>vq</code>)</h1>
+  <img src="assets/vq-logo.svg" alt="Video Sherlock logo" width="112" height="112">
+  <h1>Video Sherlock (<code>vq</code>)</h1>
 </div>
 
-`vq` is a local semantic video search and transcription CLI, and the engine
-behind the bundled `analyze-video` skill. The primary way to use this repository
-is from a coding agent: give the agent a video URL or local file and ask it to
-produce an evidence-backed report.
+Video Sherlock is an open-source video understanding skill for coding agents.
+Give it a video URL or local file and it gathers subtitles and metadata, falls
+back to local speech transcription when needed, finds relevant frames, and
+produces an auditable report with timestamps, screenshots, and source evidence.
+The bundled `analyze-video` skill orchestrates the workflow, while the `vq` CLI
+provides its local-first Rust video engine.
 
 The command scans video frames, ranks keyframes in Rust, embeds selected images
 with a local Chinese-first image/text model, persists the vectors in SQLite, and
@@ -23,7 +25,7 @@ Paste this into your coding agent to install the skill for you:
 
 ```text
 Install the `analyze-video` Agent Skill from
-https://github.com/jo32/video-query-rs/tree/main/.agents/skills/analyze-video
+https://github.com/jo32/video-sherlock/tree/main/.agents/skills/analyze-video
 for this coding agent. Install the complete skill directory, including its
 scripts and references, in the appropriate user-level or workspace skills
 directory. Verify that the skill is discoverable as `analyze-video`, tell me
@@ -41,8 +43,8 @@ This repository ships an [Agent Skill](.agents/skills/analyze-video/SKILL.md) at
 or another coding agent that supports Agent Skills:
 
 ```sh
-git clone https://github.com/jo32/video-query-rs.git
-cd video-query-rs
+git clone https://github.com/jo32/video-sherlock.git
+cd video-sherlock
 ```
 
 Ask the agent to use `$analyze-video`:
@@ -152,7 +154,7 @@ Prebuilt `vq` archives are published for:
 - macOS Apple Silicon and Intel
 
 Download the archive for your platform from the
-[latest GitHub release](https://github.com/jo32/video-query-rs/releases/latest),
+[latest GitHub release](https://github.com/jo32/video-sherlock/releases/latest),
 verify it against `SHA256SUMS`, extract it, and put `vq` (or `vq.exe`) on
 `PATH`. Each archive also contains the license and third-party notices.
 
@@ -188,8 +190,8 @@ Intel, install `whisper-cli` and use the Whisper engine.
 ## Build
 
 ```sh
-git clone https://github.com/jo32/video-query-rs.git
-cd video-query-rs
+git clone https://github.com/jo32/video-sherlock.git
+cd video-sherlock
 cargo build --release
 ./target/release/vq doctor
 ```

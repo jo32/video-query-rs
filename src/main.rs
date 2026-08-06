@@ -5,10 +5,10 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use video_query_rs::embedding::{ChineseClipEmbedder, MODEL_ID, fetch_model_files, model_status};
-use video_query_rs::index::{IndexedFrame, IndexedVideo, VideoIndex, video_fingerprint};
-use video_query_rs::keyframe::KeyframeCandidate;
-use video_query_rs::speech::{
+use video_sherlock::embedding::{ChineseClipEmbedder, MODEL_ID, fetch_model_files, model_status};
+use video_sherlock::index::{IndexedFrame, IndexedVideo, VideoIndex, video_fingerprint};
+use video_sherlock::keyframe::KeyframeCandidate;
+use video_sherlock::speech::{
     SENSEVOICE_RUNTIME_VERSION, SPEECH_MODEL_FILE, SPEECH_MODEL_ID, SPEECH_VAD_MODEL_FILE,
     SPEECH_VAD_MODEL_ID, SenseVoiceOptions, Transcript, WHISPER_MODEL_FILE, WHISPER_MODEL_ID,
     WhisperOptions, fetch_sensevoice_model, fetch_sensevoice_runtime, fetch_sensevoice_vad_model,
@@ -16,7 +16,7 @@ use video_query_rs::speech::{
     sensevoice_runtime_path, speech_model_status, transcribe_sensevoice, transcribe_whisper,
     whisper_cli_available, whisper_model_status,
 };
-use video_query_rs::video::{
+use video_sherlock::video::{
     ScanOptions, best_near, best_per_segment, collect_videos, ensure_ffmpeg_available,
     extract_jpeg, probe, scan_quality,
 };
@@ -25,8 +25,8 @@ use video_query_rs::video::{
 #[command(
     name = "vq",
     version,
-    about = "Local semantic video search and speech transcription implemented in Rust",
-    long_about = "Extract high-quality keyframes, index them with Chinese-CLIP, search videos using Chinese or English text, and transcribe audio locally with Chinese-first SenseVoice or multilingual Whisper. Model inference is local and does not require an API key."
+    about = "Evidence-backed video understanding for coding agents",
+    long_about = "Power Video Sherlock with local speech transcription, high-quality keyframe extraction, Chinese/English semantic frame search, and auditable evidence. Model inference is local and does not require an API key."
 )]
 struct Cli {
     /// Directory containing the SQLite index and extracted keyframes (default: ~/.video-query).
@@ -535,9 +535,9 @@ fn command_model(arguments: ModelArgs, json: bool) -> Result<()> {
                 #[derive(Serialize)]
                 struct Output<'a> {
                     ready: bool,
-                    embedding: &'a video_query_rs::embedding::ModelStatus,
-                    speech: &'a video_query_rs::speech::SpeechModelStatus,
-                    whisper: &'a video_query_rs::speech::WhisperModelStatus,
+                    embedding: &'a video_sherlock::embedding::ModelStatus,
+                    speech: &'a video_sherlock::speech::SpeechModelStatus,
+                    whisper: &'a video_sherlock::speech::WhisperModelStatus,
                 }
                 println!(
                     "{}",

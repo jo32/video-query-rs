@@ -20,7 +20,7 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-DEFAULT_REPOSITORY = "jo32/video-query-rs"
+DEFAULT_REPOSITORY = "jo32/video-sherlock"
 USER_AGENT = "analyze-video-skill/1"
 
 
@@ -30,7 +30,7 @@ class BootstrapError(RuntimeError):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Download or build the video-query vq CLI"
+        description="Download or build the Video Sherlock vq CLI"
     )
     parser.add_argument(
         "--repo", default=os.environ.get("VQ_GITHUB_REPO", DEFAULT_REPOSITORY)

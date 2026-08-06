@@ -131,7 +131,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vq", type=Path, help="Explicit vq executable")
     parser.add_argument(
         "--vq-repo",
-        default=os.environ.get("VQ_GITHUB_REPO", "jo32/video-query-rs"),
+        default=os.environ.get("VQ_GITHUB_REPO", "jo32/video-sherlock"),
         help="GitHub owner/repository used for vq release downloads",
     )
     parser.add_argument(
@@ -252,10 +252,10 @@ def find_project_root(explicit: Path | None) -> Path:
         return root
     for candidate in Path(__file__).resolve().parents:
         cargo = candidate / "Cargo.toml"
-        if cargo.is_file() and "video-query" in cargo.read_text(encoding="utf-8"):
+        if cargo.is_file() and "video-sherlock" in cargo.read_text(encoding="utf-8"):
             return candidate
     raise PreparationError(
-        "could not locate the video-query project; pass --project-root"
+        "could not locate the Video Sherlock project; pass --project-root"
     )
 
 

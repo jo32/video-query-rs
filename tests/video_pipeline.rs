@@ -1,5 +1,5 @@
 use std::process::{Command, Stdio};
-use video_query_rs::video::{ScanOptions, best_per_segment, extract_jpeg, scan_quality};
+use video_sherlock::video::{ScanOptions, best_per_segment, extract_jpeg, scan_quality};
 
 #[test]
 fn decodes_scores_selects_and_extracts_real_video() {

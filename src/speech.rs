@@ -260,7 +260,7 @@ pub fn fetch_sensevoice_runtime() -> Result<PathBuf> {
     let response = ureq::get(&url)
         .header(
             "User-Agent",
-            concat!("video-query-rs/", env!("CARGO_PKG_VERSION")),
+            concat!("video-sherlock/", env!("CARGO_PKG_VERSION")),
         )
         .call()
         .with_context(|| format!("failed to download {url}"))?;
@@ -538,7 +538,7 @@ fn fetch_model_file(model_id: &'static str, filename: &'static str) -> Result<Pa
     let api = ApiBuilder::from_env()
         .with_progress(false)
         .with_retries(2)
-        .with_user_agent("video-query-rs", env!("CARGO_PKG_VERSION"))
+        .with_user_agent("video-sherlock", env!("CARGO_PKG_VERSION"))
         .build()
         .context("failed to initialize the Hugging Face client")?;
     let weights = api

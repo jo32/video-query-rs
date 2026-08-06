@@ -101,7 +101,7 @@ pub fn fetch_model_files() -> Result<ModelFiles> {
     let api = ApiBuilder::from_env()
         .with_progress(false)
         .with_retries(2)
-        .with_user_agent("video-query-rs", env!("CARGO_PKG_VERSION"))
+        .with_user_agent("video-sherlock", env!("CARGO_PKG_VERSION"))
         .build()
         .context("failed to initialize the Hugging Face client")?;
     let repository = api.model(MODEL_ID.to_string());

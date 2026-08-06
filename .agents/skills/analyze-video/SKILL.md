@@ -1,6 +1,6 @@
 ---
 name: analyze-video
-description: Analyze a local video or downloadable video URL end to end. Use when Codex needs to acquire video metadata and subtitles with yt-dlp, fall back to local audio-to-text, download or prepare the cross-platform video-query (vq) CLI and its models, index frames for Chinese/English semantic search, infer important moments from timed speech, inspect keyframes visually, preserve raw evidence, and deliver one comprehensive Markdown report.
+description: Analyze a local video or downloadable video URL end to end. Use when Codex needs to acquire video metadata and subtitles with yt-dlp, fall back to local audio-to-text, download or prepare the cross-platform Video Sherlock (vq) CLI and its models, index frames for Chinese/English semantic search, infer important moments from timed speech, inspect keyframes visually, preserve raw evidence, and deliver one comprehensive Markdown report.
 ---
 
 # Analyze Video

@@ -110,7 +110,7 @@ Good queries describe visible content: “带红色下降曲线的白底图表�
 
 ## Failure and cost handling
 
-- `vq` absent or unhealthy: download the matching asset from `jo32/video-query-rs` releases and verify `SHA256SUMS`. If that is unavailable or cannot run, build the current checkout or clone the requested GitHub tag and run `cargo build --release --locked`.
+- `vq` absent or unhealthy: download the matching asset from `jo32/video-sherlock` releases and verify `SHA256SUMS`. If that is unavailable or cannot run, build the current checkout or clone the requested GitHub tag and run `cargo build --release --locked`.
 - Models absent: it runs `vq model fetch` unless `--no-model-fetch` is set. Expect about 1.2 GB total cache use.
 - yt-dlp absent: with `--install-missing`, prefer the project's pinned `uv` environment, then Homebrew on macOS.
 - FFmpeg absent: with `--install-missing` on macOS, install through Homebrew; otherwise report the narrow prerequisite.
