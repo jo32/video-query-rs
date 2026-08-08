@@ -78,10 +78,11 @@ cp -R .agents/skills/analyze-video /path/to/your-project/.agents/skills/
 ```
 
 On the first run, the skill can install or download supported missing tools, a
-checksum-verified `vq` release, and local models. Python 3.10 or newer, FFmpeg,
-and ffprobe are required; model preparation can use about 1.2 GB. URL downloads
-must be content you are authorized to save and remain subject to the source
-site's terms.
+checksum-verified `vq` release, and the local models required by active stages.
+Python 3.10 or newer, FFmpeg, and ffprobe are required; model downloads are
+lazy and vary with subtitle availability, ASR fallback, visual indexing, and
+optional narration. URL downloads must be content you are authorized to save
+and remain subject to the source site's terms.
 
 The rest of this README documents installing and using `vq` directly, including
 its lower-level indexing, search, keyframe, and transcription commands.
@@ -100,13 +101,16 @@ its lower-level indexing, search, keyframe, and transcription commands.
 - Parallel exact cosine search with Rayon.
 - Human-readable output and `--json` automation output.
 - Local multilingual audio/video transcription with timestamped segments.
+- Local Chinese-first text-to-speech with Qwen3-TTS on Apple silicon.
 
 FFmpeg and ffprobe are used as the codec boundary. Orchestration, frame quality
 analysis, visual preprocessing and inference, indexing, ranking, and CLI logic
 are implemented in Rust. Speech inference is delegated to the separately
 installed whisper.cpp runtime so Apple Silicon can use its Metal backend.
 Keeping codec decode in FFmpeg gives reliable hardware/format support without
-importing any code from the iOS application.
+importing any code from the iOS application. Text-to-speech is delegated to a
+pinned MLX-Audio environment managed by `uv`, giving Qwen3-TTS access to the
+Apple silicon GPU without making Python part of the core Rust binary.
 
 ## Why this embedding model
 
@@ -161,6 +165,7 @@ verify it against `SHA256SUMS`, extract it, and put `vq` (or `vq.exe`) on
 The CLI binary is self-contained, but FFmpeg/ffprobe remain external codec
 dependencies. Models and the small SenseVoice runtime are verified and
 downloaded on first use; model weights are not bundled in release archives.
+The optional `vq speak` command additionally uses `uv` and MLX-Audio.
 
 ## Requirements
 
@@ -168,15 +173,17 @@ downloaded on first use; model weights are not bundled in release archives.
 - Rust 1.91 or newer only when building from source
 - FFmpeg and ffprobe on `PATH`
 - Optional: [uv](https://docs.astral.sh/uv/) for the project-local `yt-dlp`
-  video downloader
+  video downloader; required for `vq speak`
 - Apple Accelerate is enabled on macOS
 - Roughly 1.2 GB free for both default model caches, plus extracted keyframes
+- An additional roughly 1.9 GB of cache and about 5 GB of available unified
+  memory for Qwen3-TTS
 - Optional: `whisper-cli` for `vq transcribe --engine whisper`
 
 On macOS:
 
 ```sh
-brew install ffmpeg rust
+brew install ffmpeg rust uv
 
 # Optional timestamped/broader-language transcription:
 brew install whisper-cpp
@@ -219,34 +226,48 @@ or convert media.
 
 ## Direct CLI usage
 
-Check whether all image and speech models/runtimes are already available without
-accessing the network:
+Check whether all embedding and transcription models/runtimes are already
+available without accessing the network:
 
 ```sh
 vq model status
 vq --json model status
 ```
 
-Download every model/runtime supported on the current platform: Chinese-CLIP,
-SenseVoice, FSMN-VAD, the native SenseVoice runtime, and the optional Whisper
-fallback. SenseVoice is skipped where no compatible native runtime exists:
+Explicitly prefetch every embedding/transcription model and runtime supported
+on the current platform. This is an opt-in cache-warming command, not part of
+the normal CLI or skill workflow. SenseVoice is skipped where no compatible
+native runtime exists:
 
 ```sh
 vq model fetch
 ```
 
-The engine-specific commands remain available when you only want one speech
-stack. Transcription also downloads the selected engine's missing components
-lazily, while index/search lazily download Chinese-CLIP:
+Normal commands download only the model they need at first use: SenseVoice or
+Whisper for the selected transcription engine, Chinese-CLIP for index/search,
+and Qwen3-TTS for speak. The component-specific status/prefetch commands are:
 
 ```sh
+# Chinese-CLIP for index/search:
+vq model status-embedding
+vq model fetch-embedding
+
 vq model status-speech
 vq model fetch-speech
 
 # Optional Whisper fallback:
 vq model status-whisper
 vq model fetch-whisper
+
+# Optional Qwen3-TTS on Apple silicon:
+vq model status-tts
+vq model fetch-tts
 ```
+
+The bundled `analyze-video` skill never calls broad `vq model fetch`. Videos
+with usable subtitles avoid ASR downloads, `--metadata-only` avoids the
+embedding download, and Qwen is untouched unless narration is explicitly
+requested. `prepare_video.py --no-model-fetch` enforces cache-only operation.
 
 Download state is written to stderr as stable, agent-readable lines. Progress
 is reported every 5%, while JSON command results remain clean on stdout:
@@ -286,6 +307,35 @@ vq transcribe lecture.mp3 --engine whisper --prompt "专有名词：滨海新区
 
 SenseVoice does not currently expose segment timestamps through its native
 runtime. All inference stays on the local machine after the first fetch.
+
+Generate a 24 kHz WAV with the default Chinese `Vivian` voice on an Apple
+silicon Mac:
+
+```sh
+vq speak "你好，我是本地运行的千问语音模型。" --output speech.wav
+vq speak "欢迎使用 Video Sherlock。" --output welcome.wav --play
+vq speak --text-file narration.txt --output narration.wav
+```
+
+The default model is
+[`mlx-community/Qwen3-TTS-12Hz-0.6B-Base-6bit`](https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-0.6B-Base-6bit).
+On first use, `uv` creates a cached Python 3.12 MLX-Audio tool environment and
+the model downloads into the Hugging Face cache. Later runs reuse both caches.
+Use `--voice`, `--language`, and `--speed` to change synthesis settings.
+
+The Qwen Base model can also clone a voice from reference audio. Supply the
+reference and its exact transcript together:
+
+```sh
+vq speak "这是克隆声音生成的句子。" \
+  --reference-audio reference.wav \
+  --reference-text "参考音频里准确说出的文字。" \
+  --output cloned.wav
+```
+
+Only use a voice sample when you have the speaker's permission. Qwen TTS is
+currently available through `vq` only on Apple silicon; other `vq` features
+remain cross-platform.
 
 Find one high-quality frame every ten seconds without loading an ML model:
 

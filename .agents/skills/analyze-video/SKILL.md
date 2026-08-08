@@ -1,6 +1,6 @@
 ---
 name: analyze-video
-description: Analyze a local video or downloadable video URL end to end. Use when Codex needs to acquire video metadata and subtitles with yt-dlp, fall back to local audio-to-text, download or prepare the cross-platform Video Sherlock (vq) CLI and its models, index frames for Chinese/English semantic search, infer important moments from timed speech, inspect keyframes visually, preserve raw evidence, and deliver one comprehensive Markdown report.
+description: Analyze a local video or downloadable video URL end to end. Use when Codex needs to acquire video metadata and subtitles with yt-dlp, fall back to local audio-to-text, download or prepare the cross-platform Video Sherlock (vq) CLI and only the models required by active stages, index frames for Chinese/English semantic search, infer important moments from timed speech, inspect keyframes visually, preserve raw evidence, and deliver one comprehensive Markdown report with optional local narration.
 ---
 
 # Analyze Video
@@ -15,7 +15,7 @@ Read [references/workflow.md](references/workflow.md) before running the pipelin
 
 Accept either an HTTP(S) video URL or an absolute/local media path. Pick a dedicated output directory that does not contain unrelated user files. Only download media the user is authorized to save, and honor the source site's terms.
 
-Briefly tell the user before the first run that missing packages or models may be built/downloaded. Model preparation is part of this skill and can require about 1.2 GB.
+Briefly tell the user before the first run that missing packages or stage-specific models may be built/downloaded. Do not quote one combined download size: subtitles, metadata-only mode, ASR fallback, indexing, and optional narration need different resources.
 
 ### 2. Prepare all machine-readable evidence
 
@@ -28,7 +28,17 @@ python3 <skill-dir>/scripts/prepare_video.py \
   --install-missing
 ```
 
-Add `--language zh` for known Mandarin/Cantonese content. Omit `--install-missing` only when the user prohibits package-manager changes. Do not replace this script with ad hoc commands: it accepts an already healthy `vq`, otherwise downloads a checksum-verified GitHub release for Windows, Linux, or macOS, and uses a GitHub source build only as the final fallback. It also verifies FFmpeg and yt-dlp, checks/fetches models, downloads useful sidecars, normalizes subtitles or transcribes locally, indexes the video, ranks timed cues, runs embedding searches, and extracts candidate frames.
+Add `--language zh` for known Mandarin/Cantonese content. Omit `--install-missing` only when the user prohibits package-manager changes. Do not replace this script with ad hoc commands: it accepts an already healthy `vq`, otherwise downloads a checksum-verified GitHub release for Windows, Linux, or macOS, and uses a GitHub source build only as the final fallback. It verifies prerequisites only when their stage needs them, downloads useful sidecars, normalizes subtitles or transcribes locally, indexes the video, ranks timed cues, runs embedding searches, and extracts candidate frames.
+
+Model downloads are lazy and stage-scoped:
+
+- authored or automatic subtitles avoid both ASR model downloads;
+- Whisper downloads only when timed ASR fallback is required;
+- SenseVoice downloads only when that ASR cross-check is enabled;
+- Chinese-CLIP downloads only when visual indexing runs;
+- Qwen3-TTS downloads only when the user explicitly requests narration.
+
+Never call broad `vq model fetch` as part of the normal skill workflow. Use `--no-model-fetch` when the user prohibits model downloads; required uncached stages then fail narrowly, while an uncached optional SenseVoice cross-check is skipped.
 
 If a site requires browser cookies and the user explicitly authorizes access to a browser cookie store, add `--cookies-from-browser <browser>` (for example, `--cookies-from-browser chrome`). Never enable browser-cookie access implicitly.
 
@@ -75,6 +85,18 @@ Open `report.md` and verify that:
 - limitations distinguish publisher claims, ASR/subtitle text, and direct visual observations.
 
 Return the absolute paths to `report.md` and the analysis directory. In the response, state which transcript source was used and whether any stage was unavailable.
+
+### 6. Narrate only when explicitly requested
+
+Do not synthesize speech during a normal video analysis. If the user asks for a spoken result, write a clean UTF-8 narration script containing the requested summary—not raw Markdown, URLs, tables, or image paths—then use the exact `vq` path recorded in `manifest.json`:
+
+```sh
+"<vq>" speak \
+  --text-file "<analysis-dir>/narration.txt" \
+  --output "<analysis-dir>/narration.wav"
+```
+
+Add `--play` only when the user asks to hear it immediately. On Apple silicon, first use creates the pinned MLX-Audio environment and downloads `Qwen3-TTS-12Hz-0.6B-Base-6bit`; later runs reuse both caches. If `vq speak` is unsupported on the current platform or release, keep the written report and disclose that narration was unavailable. Never use reference audio for cloning without the speaker's permission.
 
 ## Non-negotiable evidence rules
 

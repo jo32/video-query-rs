@@ -8,3 +8,4 @@ __pycache__/
 *.sqlite3-wal
 .DS_Store
 /video-analyses/
+/tts-output/

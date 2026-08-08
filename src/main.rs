@@ -16,6 +16,10 @@ use video_sherlock::speech::{
     sensevoice_runtime_path, speech_model_status, transcribe_sensevoice, transcribe_whisper,
     whisper_cli_available, whisper_model_status,
 };
+use video_sherlock::tts::{
+    QWEN_TTS_MODEL_ID, QwenTtsOptions, fetch_qwen_tts_model, qwen_tts_model_status,
+    synthesize_qwen, tts_platform_supported, uv_available,
+};
 use video_sherlock::video::{
     ScanOptions, best_near, best_per_segment, collect_videos, ensure_ffmpeg_available,
     extract_jpeg, probe, scan_quality,
@@ -57,7 +61,10 @@ enum Command {
     /// Transcribe speech and detect audio events from an audio or video file locally.
     #[command(visible_alias = "audio-to-text")]
     Transcribe(TranscribeArgs),
-    /// Download or inspect local embedding and speech models.
+    /// Generate local speech from text with Qwen3-TTS on Apple silicon.
+    #[command(visible_alias = "text-to-speech")]
+    Speak(SpeakArgs),
+    /// Download or inspect local embedding and transcription models.
     Model(ModelArgs),
     /// Print index statistics.
     Stats,
@@ -164,6 +171,49 @@ struct TranscribeArgs {
     output: Option<PathBuf>,
 }
 
+#[derive(Args, Debug)]
+struct SpeakArgs {
+    /// Text to synthesize.
+    #[arg(required_unless_present = "text_file", conflicts_with = "text_file")]
+    text: Option<String>,
+
+    /// Read text to synthesize from a UTF-8 file.
+    #[arg(long, conflicts_with = "text")]
+    text_file: Option<PathBuf>,
+
+    /// MLX-Audio model repository or local model path.
+    #[arg(long, default_value = QWEN_TTS_MODEL_ID)]
+    model: String,
+
+    /// Built-in Qwen voice used when no reference audio is supplied.
+    #[arg(long, default_value = "Vivian")]
+    voice: String,
+
+    /// Language hint passed to Qwen3-TTS.
+    #[arg(short, long, default_value = "Chinese")]
+    language: String,
+
+    /// Generated 24 kHz PCM WAV file.
+    #[arg(short, long, default_value = "speech.wav")]
+    output: PathBuf,
+
+    /// Audio sample whose voice should be cloned.
+    #[arg(long, requires = "reference_text")]
+    reference_audio: Option<PathBuf>,
+
+    /// Exact transcript of --reference-audio.
+    #[arg(long, requires = "reference_audio")]
+    reference_text: Option<String>,
+
+    /// Speech-rate multiplier.
+    #[arg(long, default_value_t = 1.0)]
+    speed: f32,
+
+    /// Play the generated WAV with macOS afplay.
+    #[arg(long)]
+    play: bool,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 enum SpeechEngine {
     Sensevoice,
@@ -178,10 +228,14 @@ struct ModelArgs {
 
 #[derive(Subcommand, Debug)]
 enum ModelCommand {
-    /// Check every image and speech model cache without using the network.
+    /// Check every image and transcription model cache without using the network.
     Status,
-    /// Download all missing image and speech models/runtimes with progress output.
+    /// Download all missing image and transcription models/runtimes with progress output.
     Fetch,
+    /// Check the Chinese-CLIP embedding model cache without using the network.
+    StatusEmbedding,
+    /// Download the Chinese-CLIP embedding model used by index and search.
+    FetchEmbedding,
     /// Check the speech model cache without using the network.
     StatusSpeech,
     /// Download the recommended speech-to-text model with progress output.
@@ -190,6 +244,10 @@ enum ModelCommand {
     StatusWhisper,
     /// Download the optional Whisper model used for timestamps and broader language support.
     FetchWhisper,
+    /// Check the optional Qwen3-TTS model cache without using the network.
+    StatusTts,
+    /// Download the optional Qwen3-TTS model and its pinned MLX-Audio runtime.
+    FetchTts,
 }
 
 fn default_index_dir() -> PathBuf {
@@ -214,10 +272,43 @@ fn run(cli: Cli) -> Result<()> {
         Command::Index(arguments) => command_index(arguments, &cli.index_dir, cli.json),
         Command::Search(arguments) => command_search(arguments, &cli.index_dir, cli.json),
         Command::Transcribe(arguments) => command_transcribe(arguments, cli.json),
+        Command::Speak(arguments) => command_speak(arguments, cli.json),
         Command::Model(arguments) => command_model(arguments, cli.json),
         Command::Stats => command_stats(&cli.index_dir, cli.json),
         Command::Doctor => command_doctor(cli.json),
     }
+}
+
+fn command_speak(arguments: SpeakArgs, json: bool) -> Result<()> {
+    let text = match (arguments.text, arguments.text_file) {
+        (Some(text), None) => text,
+        (None, Some(path)) => fs::read_to_string(&path)
+            .with_context(|| format!("failed to read TTS text from {}", path.display()))?,
+        _ => unreachable!("clap requires exactly one TTS text source"),
+    };
+    let result = synthesize_qwen(&QwenTtsOptions {
+        text: &text,
+        model: &arguments.model,
+        voice: &arguments.voice,
+        language: &arguments.language,
+        output: &arguments.output,
+        reference_audio: arguments.reference_audio.as_deref(),
+        reference_text: arguments.reference_text.as_deref(),
+        speed: arguments.speed,
+        play: arguments.play,
+    })?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        println!("model:  {}", result.model);
+        println!("voice:  {}", result.voice);
+        println!(
+            "output: {} ({} bytes)",
+            result.output.display(),
+            result.bytes
+        );
+    }
+    Ok(())
 }
 
 fn command_keyframes(arguments: KeyframesArgs, json: bool) -> Result<()> {
@@ -665,6 +756,59 @@ fn command_model(arguments: ModelArgs, json: bool) -> Result<()> {
             }
             Ok(())
         }
+        ModelCommand::StatusEmbedding => {
+            let status = model_status();
+            if json {
+                println!("{}", serde_json::to_string_pretty(&status)?);
+            } else {
+                println!("model:  {}", status.model);
+                println!("status: {}", if status.ready { "ready" } else { "missing" });
+                println!("cache:  {}", status.cache_directory.display());
+                if let Some(path) = status.weights {
+                    println!(
+                        "weights: {} ({} bytes)",
+                        path.display(),
+                        status.weights_bytes.unwrap_or_default()
+                    );
+                }
+                if let Some(path) = status.vocabulary {
+                    println!(
+                        "vocabulary: {} ({} bytes)",
+                        path.display(),
+                        status.vocabulary_bytes.unwrap_or_default()
+                    );
+                }
+                if !status.missing_files.is_empty() {
+                    println!("missing: {}", status.missing_files.join(", "));
+                    println!("next:    vq model fetch-embedding");
+                }
+            }
+            Ok(())
+        }
+        ModelCommand::FetchEmbedding => {
+            let files = fetch_model_files()?;
+            if json {
+                #[derive(Serialize)]
+                struct Output<'a> {
+                    model: &'a str,
+                    weights: &'a Path,
+                    vocabulary: &'a Path,
+                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&Output {
+                        model: MODEL_ID,
+                        weights: &files.weights,
+                        vocabulary: &files.vocabulary,
+                    })?
+                );
+            } else {
+                println!("model:      {MODEL_ID}");
+                println!("weights:    {}", files.weights.display());
+                println!("vocabulary: {}", files.vocabulary.display());
+            }
+            Ok(())
+        }
         ModelCommand::StatusSpeech => {
             let status = speech_model_status();
             if json {
@@ -699,7 +843,7 @@ fn command_model(arguments: ModelArgs, json: bool) -> Result<()> {
                 }
                 if !status.missing_files.is_empty() {
                     println!("missing: {}", status.missing_files.join(", "));
-                    println!("next:    vq model fetch");
+                    println!("next:    vq model fetch-speech");
                 }
             }
             Ok(())
@@ -758,7 +902,7 @@ fn command_model(arguments: ModelArgs, json: bool) -> Result<()> {
                         status.weights_bytes.unwrap_or_default()
                     );
                 } else {
-                    println!("next:    vq model fetch");
+                    println!("next:    vq model fetch-whisper");
                 }
             }
             Ok(())
@@ -787,6 +931,51 @@ fn command_model(arguments: ModelArgs, json: bool) -> Result<()> {
             }
             Ok(())
         }
+        ModelCommand::StatusTts => {
+            let status = qwen_tts_model_status();
+            if json {
+                println!("{}", serde_json::to_string_pretty(&status)?);
+            } else {
+                println!("model:   {}", status.model);
+                println!(
+                    "status:  {}",
+                    if status.ready { "ready" } else { "missing" }
+                );
+                println!(
+                    "runtime: {}",
+                    if status.runtime_available {
+                        "uv ready"
+                    } else {
+                        "uv missing"
+                    }
+                );
+                println!("cache:   {}", status.cache_directory.display());
+                if let Some(path) = status.weights {
+                    println!(
+                        "weights: {} ({} bytes)",
+                        path.display(),
+                        status.weights_bytes.unwrap_or_default()
+                    );
+                } else {
+                    println!("next:    vq model fetch-tts");
+                }
+            }
+            Ok(())
+        }
+        ModelCommand::FetchTts => {
+            let status = fetch_qwen_tts_model()?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&status)?);
+            } else {
+                println!("model:   {}", status.model);
+                println!("weights: {}", status.weights.as_deref().unwrap().display());
+                println!(
+                    "tokenizer: {}",
+                    status.tokenizer_weights.as_deref().unwrap().display()
+                );
+            }
+            Ok(())
+        }
     }
 }
 
@@ -809,6 +998,9 @@ fn command_doctor(json: bool) -> Result<()> {
     let whisper_cli = whisper_cli_available();
     let speech_status = speech_model_status();
     let sensevoice_runtime = speech_status.runtime_ready;
+    let uv = uv_available();
+    let tts_supported = tts_platform_supported();
+    let tts_model_downloaded = qwen_tts_model_status().ready;
     #[derive(Serialize)]
     struct Doctor<'a> {
         rust_binary: bool,
@@ -823,6 +1015,10 @@ fn command_doctor(json: bool) -> Result<()> {
         speech_model_downloaded: bool,
         speech_vad_downloaded: bool,
         model_cache: &'a Path,
+        uv: bool,
+        tts_supported: bool,
+        tts_model: &'a str,
+        tts_model_downloaded: bool,
     }
     let result = Doctor {
         rust_binary: true,
@@ -840,6 +1036,10 @@ fn command_doctor(json: bool) -> Result<()> {
         speech_model_downloaded: speech_status.weights.is_some(),
         speech_vad_downloaded: speech_status.vad_weights.is_some(),
         model_cache: &model_status.cache_directory,
+        uv,
+        tts_supported,
+        tts_model: QWEN_TTS_MODEL_ID,
+        tts_model_downloaded,
     };
     if json {
         println!("{}", serde_json::to_string_pretty(&result)?);
@@ -853,7 +1053,7 @@ fn command_doctor(json: bool) -> Result<()> {
             } else if !speech_status.runtime_supported {
                 "unsupported on this platform; Whisper is the default"
             } else {
-                "missing; run `vq model fetch`"
+                "missing; run `vq model fetch-speech`"
             }
         );
         println!(
@@ -865,11 +1065,23 @@ fn command_doctor(json: bool) -> Result<()> {
             }
         );
         println!(
+            "Qwen TTS runtime:   {}",
+            if !tts_supported {
+                "unsupported (requires Apple silicon)"
+            } else if uv && tts_model_downloaded {
+                "ok; model ready"
+            } else if uv {
+                "ok; model downloads on first `vq speak`"
+            } else {
+                "missing uv"
+            }
+        );
+        println!(
             "Image model:  {MODEL_ID} ({})",
             if model_status.ready {
                 "ready"
             } else {
-                "missing; run `vq model fetch`"
+                "missing; run `vq model fetch-embedding`"
             }
         );
         println!(
@@ -877,7 +1089,7 @@ fn command_doctor(json: bool) -> Result<()> {
             if speech_status.models_ready {
                 "ready"
             } else {
-                "missing; run `vq model fetch`"
+                "missing; run `vq model fetch-speech`"
             }
         );
         println!("Cache:    {}", model_status.cache_directory.display());

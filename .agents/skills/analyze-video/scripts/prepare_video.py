@@ -170,7 +170,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--no-model-fetch",
         action="store_true",
-        help="Fail instead of downloading missing vq model resources",
+        help="Use cached models only; fail when a required stage-specific model is missing",
     )
     parser.add_argument(
         "--no-sensevoice-crosscheck",
@@ -368,28 +368,91 @@ def parse_json_stdout(result: subprocess.CompletedProcess[str], label: str) -> A
         raise PreparationError(f"{label} returned invalid JSON: {error}") from error
 
 
-def prepare_models(vq: Path, logs: Path, no_model_fetch: bool) -> dict[str, Any]:
-    status_result = run(
-        [vq, "--json", "model", "status"], log_path=logs / "model-status.log"
+MODEL_STATUS_COMMANDS: dict[str, tuple[str, ...]] = {
+    "embedding": ("model", "status"),
+    "whisper": ("model", "status-whisper"),
+    "sensevoice": ("model", "status-speech"),
+}
+
+
+def component_model_status(
+    vq: Path,
+    component: str,
+    logs: Path,
+    phase: str,
+) -> dict[str, Any]:
+    try:
+        status_command = MODEL_STATUS_COMMANDS[component]
+    except KeyError as error:
+        raise PreparationError(f"unknown model component: {component}") from error
+    result = run(
+        [vq, "--json", *status_command],
+        log_path=logs / f"model-{component}-status-{phase}.log",
     )
-    status = parse_json_stdout(status_result, "vq model status")
-    if not status.get("ready"):
-        if no_model_fetch:
-            raise PreparationError(
-                "vq model resources are incomplete and --no-model-fetch was set"
-            )
-        print("[prepare] downloading missing local model resources", file=sys.stderr)
-        run([vq, "model", "fetch"], log_path=logs / "model-fetch.log")
-        status_result = run(
-            [vq, "--json", "model", "status"],
-            log_path=logs / "model-status-after-fetch.log",
-        )
-        status = parse_json_stdout(status_result, "vq model status")
-        if not status.get("ready"):
-            raise PreparationError(
-                "vq model fetch completed, but resources are still incomplete"
-            )
+    status = parse_json_stdout(result, f"vq {' '.join(status_command)}")
+    if component == "embedding":
+        status = status.get("embedding") or {}
+    if not isinstance(status, dict):
+        raise PreparationError(f"vq returned invalid {component} model status")
     return status
+
+
+def prepare_model_for_use(
+    vq: Path,
+    component: str,
+    logs: Path,
+    no_model_fetch: bool,
+    models: dict[str, dict[str, Any]],
+    *,
+    required: bool,
+) -> bool:
+    status = component_model_status(vq, component, logs, "before")
+    ready = bool(status.get("ready"))
+    models[component] = {
+        "model": status.get("model"),
+        "required": required,
+        "ready_before": ready,
+        "ready_after": ready,
+        "downloaded_on_use": False,
+    }
+    if ready:
+        return True
+    if no_model_fetch:
+        if required:
+            raise PreparationError(
+                f"{component} model is required but not cached and --no-model-fetch was set"
+            )
+        models[component]["skipped"] = "not cached under --no-model-fetch"
+        print(
+            f"[prepare] model={component} status=missing action=skip-optional",
+            file=sys.stderr,
+        )
+        return False
+    print(
+        f"[prepare] model={component} status=missing action=download-on-use",
+        file=sys.stderr,
+    )
+    return True
+
+
+def finish_model_use(
+    vq: Path,
+    component: str,
+    logs: Path,
+    models: dict[str, dict[str, Any]],
+    *,
+    required: bool,
+) -> None:
+    status = component_model_status(vq, component, logs, "after")
+    ready = bool(status.get("ready"))
+    record = models.setdefault(component, {})
+    record["model"] = status.get("model") or record.get("model")
+    record["ready_after"] = ready
+    record["downloaded_on_use"] = not bool(record.get("ready_before")) and ready
+    if required and not ready:
+        raise PreparationError(
+            f"{component} command completed but its model cache is still incomplete"
+        )
 
 
 def acquire_url(
@@ -615,8 +678,18 @@ def transcribe_video(
     logs: Path,
     install_missing: bool,
     sensevoice_crosscheck: bool,
+    no_model_fetch: bool,
+    models: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     ensure_whisper_runtime(install_missing)
+    prepare_model_for_use(
+        vq,
+        "whisper",
+        logs,
+        no_model_fetch,
+        models,
+        required=True,
+    )
     transcript_path = raw_dir / "transcript.json"
     whisper = run(
         [
@@ -635,8 +708,16 @@ def transcribe_video(
         log_path=logs / "transcribe-whisper.log",
     )
     transcript = parse_json_stdout(whisper, "vq transcribe --engine whisper")
+    finish_model_use(vq, "whisper", logs, models, required=True)
     write_json(transcript_path, transcript)
-    if sensevoice_crosscheck:
+    if sensevoice_crosscheck and prepare_model_for_use(
+        vq,
+        "sensevoice",
+        logs,
+        no_model_fetch,
+        models,
+        required=False,
+    ):
         sense_path = raw_dir / "transcript-sensevoice.json"
         sense = run(
             [
@@ -654,6 +735,7 @@ def transcribe_video(
             log_path=logs / "transcribe-sensevoice.log",
             check=False,
         )
+        finish_model_use(vq, "sensevoice", logs, models, required=False)
         if sense.returncode == 0:
             try:
                 write_json(sense_path, json.loads(sense.stdout))
@@ -1057,16 +1139,17 @@ def main() -> int:
     project_root = find_project_root(args.project_root)
     vq = ensure_vq(project_root, args, logs)
     ensure_ffmpeg(args.install_missing)
-    yt_dlp = ensure_yt_dlp(project_root, args.install_missing)
+    yt_dlp: list[str] | None = None
 
     doctor_result = run([vq, "--json", "doctor"], log_path=logs / "doctor.log")
     doctor = parse_json_stdout(doctor_result, "vq doctor")
-    models = prepare_models(vq, logs, args.no_model_fetch)
+    models: dict[str, dict[str, Any]] = {}
     sensevoice_crosscheck = not args.no_sensevoice_crosscheck and bool(
         doctor.get("sensevoice_runtime") or doctor.get("sensevoice_runtime_supported")
     )
 
     if is_url(args.source):
+        yt_dlp = ensure_yt_dlp(project_root, args.install_missing)
         video = acquire_url(
             args.source,
             source_dir,
@@ -1108,6 +1191,8 @@ def main() -> int:
                 logs,
                 args.install_missing,
                 sensevoice_crosscheck,
+                args.no_model_fetch,
+                models,
             )
             chosen_subtitle = None
     elif has_audio_stream(probe):
@@ -1119,6 +1204,8 @@ def main() -> int:
             logs,
             args.install_missing,
             sensevoice_crosscheck,
+            args.no_model_fetch,
+            models,
         )
     else:
         print(
@@ -1136,6 +1223,14 @@ def main() -> int:
     index_stats: dict[str, Any] | None = None
     index_dir = raw_dir / "index"
     if not args.metadata_only:
+        prepare_model_for_use(
+            vq,
+            "embedding",
+            logs,
+            args.no_model_fetch,
+            models,
+            required=True,
+        )
         index_result = run(
             [
                 vq,
@@ -1149,6 +1244,7 @@ def main() -> int:
             ],
             log_path=logs / "index.log",
         )
+        finish_model_use(vq, "embedding", logs, models, required=True)
         index_stats = parse_json_stdout(index_result, "vq index")
         write_json(raw_dir / "index-stats.json", index_stats)
         timed = extract_timed_frames(vq, video, candidates, raw_dir, logs, output_dir)
@@ -1188,11 +1284,18 @@ def main() -> int:
             "yt_dlp": {
                 "command": list(yt_dlp),
                 "version": command_version([*yt_dlp, "--version"]),
-            },
+            }
+            if yt_dlp
+            else None,
             "ffmpeg": command_version(["ffmpeg", "-version"]),
         },
         "doctor": doctor,
-        "models_ready": bool(models.get("ready")),
+        "model_policy": "cache-only" if args.no_model_fetch else "lazy-download",
+        "models": models,
+        "models_ready": all(
+            bool(model.get("ready_after")) or not bool(model.get("required"))
+            for model in models.values()
+        ),
     }
     write_json(output_dir / "manifest.json", manifest)
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
