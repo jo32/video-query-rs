@@ -3,12 +3,14 @@
   <h1>Video Sherlock (<code>vq</code>)</h1>
 </div>
 
-Video Sherlock is an open-source video understanding skill for coding agents.
+Video Sherlock is an open-source video understanding and local speech toolkit
+for coding agents.
 Give it a video URL or local file and it gathers subtitles and metadata, falls
 back to local speech transcription when needed, finds relevant frames, and
 produces an auditable report with timestamps, screenshots, and source evidence.
-The bundled `analyze-video` skill orchestrates the workflow, while the `vq` CLI
-provides its local-first Rust video engine.
+The bundled `analyze-video` skill orchestrates the evidence workflow, the
+separate `synthesize-speech` skill handles local narration, and the `vq` CLI
+provides their shared local-first engine.
 
 The command scans video frames, ranks keyframes in Rust, embeds selected images
 with a local Chinese-first image/text model, persists the vectors in SQLite, and
@@ -17,30 +19,31 @@ audio or video files completely locally. This is a new, standalone Rust
 implementation and does not contain the original iOS project's Swift,
 Objective-C, project files, resources, or copied implementation code.
 
-## Primary usage: coding-agent skill
+## Primary usage: coding-agent skills
 
 ### Install it with a prompt
 
-Paste this into your coding agent to install the skill for you:
+Paste this into your coding agent to install both skills for you:
 
 ```text
-Install the `analyze-video` Agent Skill from
-https://github.com/jo32/video-sherlock/tree/main/.agents/skills/analyze-video
-for this coding agent. Install the complete skill directory, including its
-scripts and references, in the appropriate user-level or workspace skills
-directory. Verify that the skill is discoverable as `analyze-video`, tell me
-the installed path, and tell me whether I need to start a new session before
-using it. Do not analyze a video yet.
+Install the `analyze-video` and `synthesize-speech` Agent Skills from
+https://github.com/jo32/video-sherlock/tree/main/.agents/skills for this coding
+agent. Install each complete skill directory in the appropriate user-level or
+workspace skills directory. Verify that both skills are discoverable, tell me
+their installed paths, and tell me whether I need to start a new session before
+using them. Do not analyze a video or synthesize speech yet.
 ```
 
 After installation, start a new agent session if requested and use one of the
-analysis prompts below.
+prompts below.
 
 ### Use it from this repository
 
-This repository ships an [Agent Skill](.agents/skills/analyze-video/SKILL.md) at
-`.agents/skills/analyze-video`. Clone the repository, then open its root in Codex
-or another coding agent that supports Agent Skills:
+This repository ships the
+[`analyze-video`](.agents/skills/analyze-video/SKILL.md) and
+[`synthesize-speech`](.agents/skills/synthesize-speech/SKILL.md) Agent Skills.
+Clone the repository, then open its root in Codex or another coding agent that
+supports Agent Skills:
 
 ```sh
 git clone https://github.com/jo32/video-sherlock.git
@@ -69,19 +72,28 @@ for Chinese/English semantic frame search, selects and visually inspects useful
 keyframes, and assembles a final `report.md`. It also preserves the source and
 raw evidence in the analysis directory so the result can be audited or resumed.
 
-To use the skill from another workspace, copy the complete skill directory into
-that workspace's `.agents/skills` directory:
+Ask for standalone local speech with `$synthesize-speech` without loading the
+video-analysis workflow:
+
+```text
+Use $synthesize-speech to speak "你好，这是本地语音。" and save it as
+/absolute/path/speech.wav.
+```
+
+To use the skills from another workspace, copy both complete skill directories
+into that workspace's `.agents/skills` directory:
 
 ```sh
 mkdir -p /path/to/your-project/.agents/skills
 cp -R .agents/skills/analyze-video /path/to/your-project/.agents/skills/
+cp -R .agents/skills/synthesize-speech /path/to/your-project/.agents/skills/
 ```
 
-On the first run, the skill can install or download supported missing tools, a
-checksum-verified `vq` release, and the local models required by active stages.
-Python 3.10 or newer, FFmpeg, and ffprobe are required; model downloads are
-lazy and vary with subtitle availability, ASR fallback, visual indexing, and
-optional narration. URL downloads must be content you are authorized to save
+On the first run, `analyze-video` can install or download supported missing
+tools, a checksum-verified `vq` release, and the local models required by active
+stages. It requires Python 3.10 or newer, FFmpeg, and ffprobe. The separate
+`synthesize-speech` skill requires an Apple-silicon Mac and `uv`. All model
+downloads are lazy. URL downloads must be content you are authorized to save
 and remain subject to the source site's terms.
 
 The rest of this README documents installing and using `vq` directly, including
@@ -265,9 +277,10 @@ vq model fetch-tts
 ```
 
 The bundled `analyze-video` skill never calls broad `vq model fetch`. Videos
-with usable subtitles avoid ASR downloads, `--metadata-only` avoids the
-embedding download, and Qwen is untouched unless narration is explicitly
-requested. `prepare_video.py --no-model-fetch` enforces cache-only operation.
+with usable subtitles avoid ASR downloads, and `--metadata-only` avoids the
+embedding download. Qwen belongs to the separate `synthesize-speech` skill and
+is untouched until speech is explicitly requested. `prepare_video.py
+--no-model-fetch` enforces cache-only video analysis.
 
 Download state is written to stderr as stable, agent-readable lines. Progress
 is reported every 5%, while JSON command results remain clean on stdout:
@@ -310,6 +323,12 @@ runtime. All inference stays on the local machine after the first fetch.
 
 Generate a 24 kHz WAV with the default Chinese `Vivian` voice on an Apple
 silicon Mac:
+
+```text
+Use $synthesize-speech to turn narration.txt into narration.wav and play it.
+```
+
+Or invoke the underlying CLI directly:
 
 ```sh
 vq speak "你好，我是本地运行的千问语音模型。" --output speech.wav

@@ -1,6 +1,6 @@
 ---
 name: analyze-video
-description: Analyze a local video or downloadable video URL end to end. Use when Codex needs to acquire video metadata and subtitles with yt-dlp, fall back to local audio-to-text, download or prepare the cross-platform Video Sherlock (vq) CLI and only the models required by active stages, index frames for Chinese/English semantic search, infer important moments from timed speech, inspect keyframes visually, preserve raw evidence, and deliver one comprehensive Markdown report with optional local narration.
+description: Analyze a local video or downloadable video URL end to end. Use when Codex needs to acquire video metadata and subtitles with yt-dlp, fall back to local audio-to-text, download or prepare the cross-platform Video Sherlock (vq) CLI and only the models required by active stages, index frames for Chinese/English semantic search, infer important moments from timed speech, inspect keyframes visually, preserve raw evidence, and deliver one comprehensive Markdown report.
 ---
 
 # Analyze Video
@@ -15,7 +15,7 @@ Read [references/workflow.md](references/workflow.md) before running the pipelin
 
 Accept either an HTTP(S) video URL or an absolute/local media path. Pick a dedicated output directory that does not contain unrelated user files. Only download media the user is authorized to save, and honor the source site's terms.
 
-Briefly tell the user before the first run that missing packages or stage-specific models may be built/downloaded. Do not quote one combined download size: subtitles, metadata-only mode, ASR fallback, indexing, and optional narration need different resources.
+Briefly tell the user before the first run that missing packages or stage-specific models may be built/downloaded. Do not quote one combined download size: subtitles, metadata-only mode, ASR fallback, and indexing need different resources.
 
 ### 2. Prepare all machine-readable evidence
 
@@ -36,7 +36,6 @@ Model downloads are lazy and stage-scoped:
 - Whisper downloads only when timed ASR fallback is required;
 - SenseVoice downloads only when that ASR cross-check is enabled;
 - Chinese-CLIP downloads only when visual indexing runs;
-- Qwen3-TTS downloads only when the user explicitly requests narration.
 
 Never call broad `vq model fetch` as part of the normal skill workflow. Use `--no-model-fetch` when the user prohibits model downloads; required uncached stages then fail narrowly, while an uncached optional SenseVoice cross-check is skipped.
 
@@ -86,17 +85,7 @@ Open `report.md` and verify that:
 
 Return the absolute paths to `report.md` and the analysis directory. In the response, state which transcript source was used and whether any stage was unavailable.
 
-### 6. Narrate only when explicitly requested
-
-Do not synthesize speech during a normal video analysis. If the user asks for a spoken result, write a clean UTF-8 narration script containing the requested summary—not raw Markdown, URLs, tables, or image paths—then use the exact `vq` path recorded in `manifest.json`:
-
-```sh
-"<vq>" speak \
-  --text-file "<analysis-dir>/narration.txt" \
-  --output "<analysis-dir>/narration.wav"
-```
-
-Add `--play` only when the user asks to hear it immediately. On Apple silicon, first use creates the pinned MLX-Audio environment and downloads `Qwen3-TTS-12Hz-0.6B-Base-6bit`; later runs reuse both caches. If `vq speak` is unsupported on the current platform or release, keep the written report and disclose that narration was unavailable. Never use reference audio for cloning without the speaker's permission.
+If the user also requests spoken narration, complete and verify the report first, then follow the separate `synthesize-speech` skill using a clean narration script derived from the finished report.
 
 ## Non-negotiable evidence rules
 

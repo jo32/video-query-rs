@@ -9,7 +9,7 @@
 ├── manifest.json
 ├── report.md                         # created after synthesis
 ├── source/                           # downloaded video and yt-dlp sidecars
-├── raw/
+└── raw/
     ├── metadata.json
     ├── description.txt               # when available
     ├── video-probe.json
@@ -25,8 +25,6 @@
     ├── keyframes/
     ├── search/
     └── logs/
-├── narration.txt                     # optional, only when requested
-└── narration.wav                     # optional Qwen3-TTS output
 ```
 
 For URL input, yt-dlp requests the cleaned info JSON, description, thumbnail, authored subtitles, and automatic subtitles. It limits subtitle languages to Chinese, Cantonese, English, Japanese, and Korean by default; override with `--subtitle-languages` when the source is known to use another language. Comments are deliberately excluded because they are expensive, noisy, and may introduce personal data.
@@ -115,9 +113,8 @@ Good queries describe visible content: “带红色下降曲线的白底图表�
 ## Failure and cost handling
 
 - `vq` absent or unhealthy: download the matching asset from `jo32/video-sherlock` releases and verify `SHA256SUMS`. If that is unavailable or cannot run, build the current checkout or clone the requested GitHub tag and run `cargo build --release --locked`.
-- Models absent: do not run broad `vq model fetch`. Let the active `vq transcribe`, `vq index`, `vq search`, or `vq speak` command acquire only its own model.
+- Models absent: do not run broad `vq model fetch`. Let the active `vq transcribe`, `vq index`, or `vq search` command acquire only its own model.
 - `--no-model-fetch`: required uncached Whisper or Chinese-CLIP stages fail before inference. The optional SenseVoice cross-check is skipped when uncached.
-- Qwen3-TTS: never download it during ordinary analysis. If narration is explicitly requested on Apple silicon, `vq speak` lazily prepares MLX-Audio and the Qwen model; allow roughly 1.9 GB of cache and about 5 GB of available unified memory.
 - yt-dlp absent: with `--install-missing`, prefer the project's pinned `uv` environment, then Homebrew on macOS.
 - FFmpeg absent: with `--install-missing` on macOS, install through Homebrew; otherwise report the narrow prerequisite.
 - No subtitles: install/use `whisper-cli` and create timestamped local ASR. On Windows/Linux, `--install-missing` downloads a checksum-pinned official whisper.cpp runtime; on macOS it uses Homebrew.

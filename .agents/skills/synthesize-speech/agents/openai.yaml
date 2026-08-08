@@ -1,0 +1,4 @@
+interface:
+  display_name: "Synthesize Speech"
+  short_description: "Generate local speech with Qwen3-TTS"
+  default_prompt: "Use $synthesize-speech to turn this text into a local WAV file."
